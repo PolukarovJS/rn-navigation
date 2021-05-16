@@ -1,33 +1,59 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, Button, ScrollView, Alert } from 'react-native';
-import { DATA } from '../data';
-import { THEME } from '../theme';
-import { HeaderButtons, Item } from 'react-navigation-header-buttons';
+import { useDispatch, useSelector } from 'react-redux';
+import { Item, HeaderButtons } from 'react-navigation-header-buttons';
 import { AppHeaderIcon } from '../components/AppHeaderIcon';
+import { THEME } from '../theme';
+import { toggleBooked, removePost } from '../store/actions/postAction';
 
 export const PostScreen = ({ navigation, route }) => {
+   const dispatch = useDispatch();
    const postId = route.params.postId;
-   const post = DATA.find((p) => p.id === postId);
-   // useEffect(() => {
-   //    navigation.setParams({ booked: post.booked, date: post.date });
-   // }, []);
-   const removeHandler = (id) => {
+
+   const post = useSelector((state) => state.post.allPosts.find((post) => post.id === postId));
+
+   const booked = useSelector((state) => state.post.bookedPosts.some((post) => post.id === postId));
+
+   useEffect(() => {
+      navigation.setParams({ booked: booked });
+   }, [booked]);
+
+   const toggleHandler = useCallback(() => {
+      dispatch(toggleBooked(post));
+   }, [dispatch, post]);
+
+   useEffect(() => {
+      navigation.setParams({ toggleHandler });
+   }, [toggleHandler]);
+
+   const removeHandler = () => {
       Alert.alert(
          'Удаление поста',
          'Вы уверены, что хотите удалить пост?',
          [
             {
                text: 'Отменить',
-               onPress: () => console.log('Cancel Pressed'),
                style: 'cancel',
             },
-            { text: 'Удалить', style: 'destructive', onPress: () => {} },
+            {
+               text: 'Удалить',
+               style: 'destructive',
+               onPress: () => {
+                  dispatch(removePost(postId));
+                  navigation.navigate('Main');
+               },
+            },
          ],
          { cancelable: false }
       );
    };
+
+   if (!post) {
+      return <Text>Пост удален</Text>;
+   }
+
    return (
-      <ScrollView style={styles.center}>
+      <ScrollView>
          <Image source={{ uri: post.img }} style={styles.image} />
          <View style={styles.textWrap}>
             <Text style={styles.title}>{post.text}</Text>
@@ -39,18 +65,14 @@ export const PostScreen = ({ navigation, route }) => {
 
 PostScreen.navigationOptions = ({ route }) => {
    const date = route.params.date;
-   const iconName = route.params.booked ? 'ios-star' : 'ios-star-outline';
+   const booked = route.params.booked;
+   const toggleHandler = route.params.toggleHandler;
+   const iconName = booked ? 'ios-star' : 'ios-star-outline';
    return {
-      headerShown: true,
-      headerTitleAlign: 'center',
       headerTitle: 'Пост от ' + new Date(date).toLocaleDateString(),
       headerRight: () => (
          <HeaderButtons HeaderButtonComponent={AppHeaderIcon}>
-            <Item
-               title="Take photo"
-               iconName={iconName}
-               onPress={() => console.log('Press photo')}
-            />
+            <Item title="Take photo" iconName={iconName} onPress={toggleHandler} />
          </HeaderButtons>
       ),
    };
